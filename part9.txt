@@ -1,0 +1,25 @@
+	//int sq64 = 0;
+	
+    printf("\n");
+    PrintBitBoard(playBitBoard);
+    int count = CNT(playBitBoard);
+    printf("Count: %d\n",count);
+    printf("\n");
+    
+    int index = POP(&playBitBoard);
+    PrintBitBoard(playBitBoard);
+    count = CNT(playBitBoard);
+    printf("Count: %d\n",count);
+    printf("\n");
+
+    index = POP(&playBitBoard);
+    PrintBitBoard(playBitBoard);
+    count = CNT(playBitBoard);
+    printf("Count: %d\n",count);
+    printf("\n");
+
+    index = POP(&playBitBoard);
+    PrintBitBoard(playBitBoard);
+    count = CNT(playBitBoard);
+    printf("Count: %d\n",count);
+    printf("\n");
