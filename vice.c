@@ -1,22 +1,13 @@
+// vice.c
+
 #include "stdio.h"
 #include "defs.h"
-
+#include "stdlib.h"
 
 
 int main() {
 
-	AllInit();
-	
-	int index = 0;
-	U64 playBitBoard = 0ULL;
-
-	
-	SETBIT(playBitBoard, 61);
-	PrintBitBoard(playBitBoard);
-	
-	
-	CLRBIT(playBitBoard, 61);
-	PrintBitBoard(playBitBoard);
+	AllInit();	
 	
 	return 0;
 }
