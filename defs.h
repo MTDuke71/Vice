@@ -24,6 +24,7 @@ typedef unsigned long long U64;
 #define BRD_SQ_NUM 120
 
 #define MAXGAMEMOVES 2048
+#define MAXPOSITIONMOVES 256
 
 #define START_FEN  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -52,6 +53,11 @@ typedef struct {
 	int move;
 	int score;
 } S_MOVE;
+
+typedef struct {
+	S_MOVE moves[MAXPOSITIONMOVES];
+	int count;
+} S_MOVELIST;
 
 typedef struct {
 	
@@ -96,10 +102,9 @@ typedef struct {
 
 /* GAME MOVE */
 
-
-/*   
-0000 0000 0000 0000 0000 0111 1111 -> From 0x3F
-0000 0000 0000 0011 1111 1000 0000 -> To >> 7, 0x3F
+/*                         	                        
+0000 0000 0000 0000 0000 0111 1111 -> From 0x7F
+0000 0000 0000 0011 1111 1000 0000 -> To >> 7, 0x7F
 0000 0000 0011 1100 0000 0000 0000 -> Captured >> 14, 0xF
 0000 0000 0100 0000 0000 0000 0000 -> EP 0x40000
 0000 0000 1000 0000 0000 0000 0000 -> Pawn Start 0x80000
@@ -107,8 +112,8 @@ typedef struct {
 0001 0000 0000 0000 0000 0000 0000 -> Castle 0x1000000
 */
 
-#define FROMSQ(m) ((m) & 0x3F)
-#define TOSQ(m) (((m)>>7) & 0x3F)
+#define FROMSQ(m) ((m) & 0x7F)
+#define TOSQ(m) (((m)>>7) & 0x7F)
 #define CAPTURED(m) (((m)>>14) & 0xF)
 #define PROMOTED(m) (((m)>>20) & 0xF)
 
@@ -185,6 +190,21 @@ extern int CheckBoard(const S_BOARD *pos);
 
 // attack.c
 extern int SqAttacked(const int sq, const int side, const S_BOARD *pos);
+
+// io.c
+extern char *PrMove(const int move);
+extern char *PrSq(const int sq);
+extern void PrintMoveList(const S_MOVELIST *list);
+
+//validate.c
+extern int SqOnBoard(const int sq);
+extern int SideValid(const int side);
+extern int FileRankValid(const int fr);
+extern int PieceValidEmpty(const int pce);
+extern int PieceValid(const int pce);
+
+// movegen.c
+extern void GenerateAllMoves(const S_BOARD *pos, S_MOVELIST *list);
 
 #endif
 

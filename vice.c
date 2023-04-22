@@ -4,46 +4,23 @@
 #include "defs.h"
 #include "stdlib.h"
 
-#define FEN4 "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
-
-void PrintBin(int move) {
-
-	int index = 0;
-	printf("As binary:\n");
-	for(index = 27; index >= 0; index--) {
-		if( (1<<index) & move) printf("1");
-		else printf("0");
-		if(index!=28 && index%4==0) printf(" ");
-	}
-	printf("\n");
-}
+#define PAWNMOVESW "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1"
+#define PAWNMOVESB "rnbqkbnr/p1p1p3/3p3p/1p1p4/2P1Pp2/8/PP1P1PpP/RNBQKB1R b KQkq e3 0 1"
 
 int main() {	
 
-	AllInit();	
-
+	AllInit();		
+	
 	S_BOARD board[1];
 	
-	ParseFen(FEN4, board);	
-	PrintBoard(board);	
-	ASSERT(CheckBoard(board));	
+	ParseFen(PAWNMOVESB,board);
+	PrintBoard(board);
 	
-	int move = 0;
-	int from = 6; int to = 12;
-	int cap = wR; int prom = bR;
+	S_MOVELIST list[1];
 	
-	move = ( ( from ) | ( to << 7 ) | ( cap << 14 ) | ( prom << 20) );
+	GenerateAllMoves(board,list);
 	
-	printf("\ndec:%d hex:%X\n",move,move);
-	PrintBin(move);
-	
-	printf("from:%d to:%d cap:%d prom:%d\n",
-		FROMSQ(move),TOSQ(move),CAPTURED(move),
-		PROMOTED(move));
-		
-	//move |= MFLAGPS;
-	
-	printf("is PST:%s\n",(move & MFLAGPS)?"YES":"NO");
+	PrintMoveList(list);
 	
 	return 0;
 }
