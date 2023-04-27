@@ -4,7 +4,6 @@
 #include "stdio.h"
 #include "stdlib.h"
 
-// rand() generates a 15 bit random number
 #define RAND_64 	((U64)rand() | \
 					(U64)rand() << 15 | \
 					(U64)rand() << 30 | \
