@@ -25,6 +25,7 @@ typedef unsigned long long U64;
 
 #define MAXGAMEMOVES 2048
 #define MAXPOSITIONMOVES 256
+#define MAXDEPTH 64
 
 #define START_FEN  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -58,6 +59,16 @@ typedef struct {
 	S_MOVE moves[MAXPOSITIONMOVES];
 	int count;
 } S_MOVELIST;
+
+typedef struct {
+	U64 posKey;
+	int move;
+} S_PVENTRY;
+
+typedef struct {
+	S_PVENTRY *pTable;
+	int numEntries;
+} S_PVTABLE;
 
 typedef struct {
 	
@@ -97,8 +108,31 @@ typedef struct {
 	
 	// piece list
 	int pList[13][10];	
+
+	S_PVTABLE PvTable[1];	
+	int PvArray[MAXDEPTH];
+	
+	int searchHistory[13][BRD_SQ_NUM];
+	int searchKillers[2][MAXDEPTH];
 	
 } S_BOARD;
+
+typedef struct {
+
+	int starttime;
+	int stoptime;
+	int depth;
+	int depthset;
+	int timeset;
+	int movestogo;
+	int infinite;
+	
+	long nodes;
+	
+	int quit;
+	int stopped;
+
+} S_SEARCHINFO;
 
 /* GAME MOVE */
 
@@ -210,6 +244,7 @@ extern int PieceValid(const int pce);
 
 // movegen.c
 extern void GenerateAllMoves(const S_BOARD *pos, S_MOVELIST *list);
+extern int MoveExists(S_BOARD *pos, const int move);
 
 // makemove.c
 extern int MakeMove(S_BOARD *pos, int move);
@@ -219,9 +254,16 @@ extern void TakeMove(S_BOARD *pos);
 extern void PerftTest(int depth, S_BOARD *pos);
 
 // search.c
-
 extern void SearchPosition(S_BOARD *pos);
-//extern int IsRepetition(const S_BOARD *pos);
+
+// misc.c 
+extern int GetTimeMs();
+
+// pvtable.c
+extern void InitPvTable(S_PVTABLE *table);
+extern void StorePvMove(const S_BOARD *pos, const int move);
+extern int ProbePvTable(const S_BOARD *pos);
+extern int GetPvLine(const int depth, S_BOARD *pos);
 #endif
 
 
