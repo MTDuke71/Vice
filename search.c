@@ -6,8 +6,31 @@
 #define INFINITE 30000
 #define MATE 29000
 
-static void CheckUp() {
+static void CheckUp(S_SEARCHINFO *info) {
 	// .. check if time up, or interrupt from GUI
+	if(info->timeset == TRUE && GetTimeMs() > info->stoptime) {
+		info->stopped = TRUE;
+	}
+		
+	ReadInput(info);
+}
+
+static void PickNextMove(int moveNum, S_MOVELIST *list) {
+
+	S_MOVE temp;
+	int index = 0;
+	int bestScore = 0; 
+	int bestNum = moveNum;
+	
+	for (index = moveNum; index < list->count; ++index) {
+		if (list->moves[index].score > bestScore) {
+			bestScore = list->moves[index].score;
+			bestNum = index;
+		}
+	}
+	temp = list->moves[moveNum];
+	list->moves[moveNum] = list->moves[bestNum];
+	list->moves[bestNum] = temp;
 }
 
 static int IsRepetition(const S_BOARD *pos) {
@@ -43,7 +66,6 @@ static void ClearForSearch(S_BOARD *pos, S_SEARCHINFO *info) {
 	ClearPvTable(pos->PvTable);	
 	pos->ply = 0;
 	
-	info->starttime = GetTimeMs();
 	info->stopped = 0;
 	info->nodes = 0;
 	info->fh = 0;
@@ -51,7 +73,86 @@ static void ClearForSearch(S_BOARD *pos, S_SEARCHINFO *info) {
 }
 
 static int Quiescence(int alpha, int beta, S_BOARD *pos, S_SEARCHINFO *info) {
-	return 0;
+
+	ASSERT(CheckBoard(pos));
+	
+	if(( info->nodes & 2047 ) == 0) {
+		CheckUp(info);
+	}
+	
+	info->nodes++;
+	
+	if((IsRepetition(pos) || pos->fiftyMove >= 100) && pos->ply) {
+		return 0;
+	}
+	
+	if(pos->ply > MAXDEPTH - 1) {
+		return EvalPosition(pos);
+	}
+	
+	int Score = EvalPosition(pos);
+	
+	if(Score >= beta) {
+		return beta;
+	}
+	
+	if(Score > alpha) {
+		alpha = Score;
+	}
+	
+	S_MOVELIST list[1];
+    GenerateAllCaps(pos,list);
+      
+    int MoveNum = 0;
+	int Legal = 0;
+	int OldAlpha = alpha;
+	int BestMove = NOMOVE;
+	Score = -INFINITE;
+	int PvMove = ProbePvTable(pos);
+	
+	if( PvMove != NOMOVE ) {
+		for(MoveNum = 0; MoveNum < list->count; ++MoveNum) {
+			if( list->moves[MoveNum].move == PvMove) {
+				list->moves[MoveNum].score = 2000000;
+				break;
+			}
+		}
+	}
+	
+	for(MoveNum = 0; MoveNum < list->count; ++MoveNum) {	
+			
+		PickNextMove(MoveNum, list);	
+		
+        if ( !MakeMove(pos,list->moves[MoveNum].move))  {
+            continue;
+        }
+        
+		Legal++;
+		Score = -Quiescence( -beta, -alpha, pos, info);		
+        TakeMove(pos);
+		
+		if(info->stopped == TRUE) {
+			return 0;
+		}
+		
+		if(Score > alpha) {
+			if(Score >= beta) {
+				if(Legal==1) {
+					info->fhf++;
+				}
+				info->fh++;	
+				return beta;
+			}
+			alpha = Score;
+			BestMove = list->moves[MoveNum].move;
+		}		
+    }
+	
+	if(alpha != OldAlpha) {
+		StorePvMove(pos, BestMove);
+	}
+	
+	return alpha;
 }
 
 static int AlphaBeta(int alpha, int beta, int depth, S_BOARD *pos, S_SEARCHINFO *info, int DoNull) {
@@ -59,13 +160,17 @@ static int AlphaBeta(int alpha, int beta, int depth, S_BOARD *pos, S_SEARCHINFO 
 	ASSERT(CheckBoard(pos)); 
 	
 	if(depth == 0) {
-		info->nodes++;
-		return EvalPosition(pos);
+		return Quiescence(alpha, beta, pos, info);
+		// return EvalPosition(pos);
 	}
 	
+	if(( info->nodes & 2047 ) == 0) {
+		CheckUp(info);
+	}
+		
 	info->nodes++;
 	
-	if(IsRepetition(pos) || pos->fiftyMove >= 100) {
+	if((IsRepetition(pos) || pos->fiftyMove >= 100) && pos->ply) {
 		return 0;
 	}
 	
@@ -81,9 +186,21 @@ static int AlphaBeta(int alpha, int beta, int depth, S_BOARD *pos, S_SEARCHINFO 
 	int OldAlpha = alpha;
 	int BestMove = NOMOVE;
 	int Score = -INFINITE;
+	int PvMove = ProbePvTable(pos);
+	
+	if( PvMove != NOMOVE ) {
+		for(MoveNum = 0; MoveNum < list->count; ++MoveNum) {
+			if( list->moves[MoveNum].move == PvMove) {
+				list->moves[MoveNum].score = 2000000;
+				break;
+			}
+		}
+	}
 	
 	for(MoveNum = 0; MoveNum < list->count; ++MoveNum) {	
-       
+			
+		PickNextMove(MoveNum, list);	
+		
         if ( !MakeMove(pos,list->moves[MoveNum].move))  {
             continue;
         }
@@ -92,16 +209,29 @@ static int AlphaBeta(int alpha, int beta, int depth, S_BOARD *pos, S_SEARCHINFO 
 		Score = -AlphaBeta( -beta, -alpha, depth-1, pos, info, TRUE);		
         TakeMove(pos);
 		
+		if(info->stopped == TRUE) {
+			return 0;
+		}		
+		
 		if(Score > alpha) {
 			if(Score >= beta) {
 				if(Legal==1) {
 					info->fhf++;
 				}
-				info->fh++;				
+				info->fh++;	
+				
+				if(!(list->moves[MoveNum].move & MFLAGCAP)) {
+					pos->searchKillers[1][pos->ply] = pos->searchKillers[0][pos->ply];
+					pos->searchKillers[0][pos->ply] = list->moves[MoveNum].move;
+				}
+				
 				return beta;
 			}
 			alpha = Score;
 			BestMove = list->moves[MoveNum].move;
+			if(!(list->moves[MoveNum].move & MFLAGCAP)) {
+				pos->searchHistory[pos->pieces[FROMSQ(BestMove)]][TOSQ(BestMove)] += depth;
+			}
 		}		
     }
 	
@@ -135,13 +265,15 @@ void SearchPosition(S_BOARD *pos, S_SEARCHINFO *info) {
 							// alpha	 beta
 		bestScore = AlphaBeta(-INFINITE, INFINITE, currentDepth, pos, info, TRUE);
 		
-		// out of time?
+		if(info->stopped == TRUE) {
+			break;
+		}
 		
 		pvMoves = GetPvLine(currentDepth, pos);
 		bestMove = pos->PvArray[0];
 		
-		printf("Depth:%d score:%d move:%s nodes:%ld ",
-			currentDepth,bestScore,PrMove(bestMove),info->nodes);
+		printf("info score cp %d depth %d nodes %ld time %d ",
+			bestScore,currentDepth,info->nodes,GetTimeMs()-info->starttime);
 			
 		pvMoves = GetPvLine(currentDepth, pos);	
 		printf("pv");		
@@ -149,9 +281,10 @@ void SearchPosition(S_BOARD *pos, S_SEARCHINFO *info) {
 			printf(" %s",PrMove(pos->PvArray[pvNum]));
 		}
 		printf("\n");
-		printf("Ordering:%.2f\n",(info->fhf/info->fh));
+		// printf("Ordering:%.2f\n",(info->fhf/info->fh));
 	}
-	
+	//info score cp 13  depth 1 nodes 13 time 15 pv f1b5
+	printf("bestmove %s\n",PrMove(bestMove));
 	
 }
 
