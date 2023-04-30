@@ -107,7 +107,9 @@ void ParsePosition(char* lineIn, S_BOARD *pos) {
 	PrintBoard(pos);	
 }
 
-void Uci_Loop() {
+void Uci_Loop(S_BOARD *pos, S_SEARCHINFO *info) {
+
+	info->GAME_MODE = UCIMODE;
 	
 	setbuf(stdin, NULL);
     setbuf(stdout, NULL);
@@ -115,12 +117,7 @@ void Uci_Loop() {
 	char line[INPUTBUFFER];
     printf("id name %s\n",NAME);
     printf("id author Bluefever\n");
-    printf("uciok\n");
-	
-	
-    S_BOARD pos[1];
-    S_SEARCHINFO info[1];   
-    InitPvTable(pos->PvTable);
+    printf("uciok\n");    
 	
 	while (TRUE) {
 		memset(&line[0], 0, sizeof(line));
@@ -150,7 +147,6 @@ void Uci_Loop() {
         }
 		if(info->quit) break;
     }
-	free(pos->PvTable->pTable);
 }
 
 

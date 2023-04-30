@@ -6,6 +6,8 @@
 #define INFINITE 30000
 #define MATE 29000
 
+int rootDepth;
+
 static void CheckUp(S_SEARCHINFO *info) {
 	// .. check if time up, or interrupt from GUI
 	if(info->timeset == TRUE && GetTimeMs() > info->stoptime) {
@@ -82,7 +84,7 @@ static int Quiescence(int alpha, int beta, S_BOARD *pos, S_SEARCHINFO *info) {
 	
 	info->nodes++;
 	
-	if((IsRepetition(pos) || pos->fiftyMove >= 100) && pos->ply) {
+	if(IsRepetition(pos) || pos->fiftyMove >= 100) {
 		return 0;
 	}
 	
@@ -170,12 +172,18 @@ static int AlphaBeta(int alpha, int beta, int depth, S_BOARD *pos, S_SEARCHINFO 
 		
 	info->nodes++;
 	
-	if((IsRepetition(pos) || pos->fiftyMove >= 100) && pos->ply) {
+	if((IsRepetition(pos) || pos->fiftyMove >= 100) && pos->ply) {	
 		return 0;
 	}
 	
 	if(pos->ply > MAXDEPTH - 1) {
 		return EvalPosition(pos);
+	}
+	
+	int InCheck = SqAttacked(pos->KingSq[pos->side],pos->side^1,pos);
+	
+	if(InCheck == TRUE) {
+		depth++;
 	}
 	
 	S_MOVELIST list[1];
@@ -186,9 +194,9 @@ static int AlphaBeta(int alpha, int beta, int depth, S_BOARD *pos, S_SEARCHINFO 
 	int OldAlpha = alpha;
 	int BestMove = NOMOVE;
 	int Score = -INFINITE;
-	int PvMove = ProbePvTable(pos);
+	int PvMove = ProbePvTable(pos);	
 	
-	if( PvMove != NOMOVE ) {
+	if( PvMove != NOMOVE) {
 		for(MoveNum = 0; MoveNum < list->count; ++MoveNum) {
 			if( list->moves[MoveNum].move == PvMove) {
 				list->moves[MoveNum].score = 2000000;
@@ -206,8 +214,8 @@ static int AlphaBeta(int alpha, int beta, int depth, S_BOARD *pos, S_SEARCHINFO 
         }
         
 		Legal++;
-		Score = -AlphaBeta( -beta, -alpha, depth-1, pos, info, TRUE);		
-        TakeMove(pos);
+		Score = -AlphaBeta( -beta, -alpha, depth-1, pos, info, TRUE);
+		TakeMove(pos);
 		
 		if(info->stopped == TRUE) {
 			return 0;
@@ -236,7 +244,7 @@ static int AlphaBeta(int alpha, int beta, int depth, S_BOARD *pos, S_SEARCHINFO 
     }
 	
 	if(Legal == 0) {
-		if(SqAttacked(pos->KingSq[pos->side],pos->side^1,pos)) {
+		if(InCheck) {
 			return -MATE + pos->ply;
 		} else {
 			return 0;
@@ -263,6 +271,7 @@ void SearchPosition(S_BOARD *pos, S_SEARCHINFO *info) {
 	// iterative deepening
 	for( currentDepth = 1; currentDepth <= info->depth; ++currentDepth ) {
 							// alpha	 beta
+		rootDepth = currentDepth;
 		bestScore = AlphaBeta(-INFINITE, INFINITE, currentDepth, pos, info, TRUE);
 		
 		if(info->stopped == TRUE) {
@@ -271,20 +280,36 @@ void SearchPosition(S_BOARD *pos, S_SEARCHINFO *info) {
 		
 		pvMoves = GetPvLine(currentDepth, pos);
 		bestMove = pos->PvArray[0];
-		
-		printf("info score cp %d depth %d nodes %ld time %d ",
-			bestScore,currentDepth,info->nodes,GetTimeMs()-info->starttime);
-			
-		pvMoves = GetPvLine(currentDepth, pos);	
-		printf("pv");		
-		for(pvNum = 0; pvNum < pvMoves; ++pvNum) {
-			printf(" %s",PrMove(pos->PvArray[pvNum]));
+		if(info->GAME_MODE == UCIMODE) {
+			printf("info score cp %d depth %d nodes %ld time %d ",
+				bestScore,currentDepth,info->nodes,GetTimeMs()-info->starttime);
+		} else if(info->GAME_MODE == XBOARDMODE && info->POST_THINKING == TRUE) {
+			printf("%d %d %d %ld ",
+				currentDepth,bestScore,(GetTimeMs()-info->starttime)/10,info->nodes);
+		} else if(info->POST_THINKING == TRUE) {
+			printf("score:%d depth:%d nodes:%ld time:%d(ms) ",
+				bestScore,currentDepth,info->nodes,GetTimeMs()-info->starttime);
 		}
-		printf("\n");
-		// printf("Ordering:%.2f\n",(info->fhf/info->fh));
+		if(info->GAME_MODE == UCIMODE || info->POST_THINKING == TRUE) {
+			pvMoves = GetPvLine(currentDepth, pos);	
+			printf("pv");		
+			for(pvNum = 0; pvNum < pvMoves; ++pvNum) {
+				printf(" %s",PrMove(pos->PvArray[pvNum]));
+			}
+			printf("\n");
+		}
 	}
-	//info score cp 13  depth 1 nodes 13 time 15 pv f1b5
-	printf("bestmove %s\n",PrMove(bestMove));
+	
+	if(info->GAME_MODE == UCIMODE) {
+		printf("bestmove %s\n",PrMove(bestMove));
+	} else if(info->GAME_MODE == XBOARDMODE) {		
+		printf("move %s\n",PrMove(bestMove));
+		MakeMove(pos, bestMove);
+	} else {	
+		printf("\n\n***!! Vice makes move %s !!***\n\n",PrMove(bestMove));
+		MakeMove(pos, bestMove);
+		PrintBoard(pos);
+	}
 	
 }
 
