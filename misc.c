@@ -36,7 +36,7 @@ int InputWaiting()
   tv.tv_sec=0; tv.tv_usec=0;
   select(16, &readfds, 0, 0, &tv);
 
-  return (FD_ISSET(_fileno(stdin), &readfds));
+  return (FD_ISSET(fileno(stdin), &readfds));
 #else
    static int init = 0, pipe;
    static HANDLE inh;
